@@ -1,0 +1,51 @@
+menu "Deploy The Fleet SDK"
+
+    menu "Logging"
+
+        config DTF_LOGGING_UART_ENABLED
+        bool "Enable UART Logger"
+        default n
+        help
+            Enables logging over the default UART0 port
+
+        config DTF_LOGGING_USE_COLOR
+        bool "Enable Terminal Colors"
+        default n 
+        help
+           Enables the use of terminal colors for log messages 
+
+    endmenu
+
+    menu "OTA"
+
+        config DTF_OTA_TIMEOUT_MS
+        int "HTTP Client Timeout (ms)"    
+        default 25000
+        help
+            The HTTP client timeout in seconds during the OTA update process
+        
+        config DTF_OTA_HTTP_RX_BUFFER_SIZE
+        int "HTTP RX Buffer Size"
+        default 2048
+        help
+            The size of the buffer used to receive HTTP data during the OTA update process
+
+        config DTF_OTA_HTTP_TX_BUFFER_SIZE
+        int "HTTP TX Buffer Size"
+        default 1024
+        help
+            The size of the buffer used to transmit HTTP data during the OTA update process
+
+    endmenu
+
+    menu "Profiling Settings"
+
+        config DTF_RUNTIME_PROFILING_SAMPLE_INTERVAL
+        int "Sample Interval (ms)"
+        default 500
+        help
+            The interval in milliseconds between system resource samples
+
+    endmenu
+
+endmenu

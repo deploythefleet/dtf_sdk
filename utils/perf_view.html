@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<!-- Load plotly.js into the DOM -->
+	<script src='https://cdn.plot.ly/plotly-2.12.1.min.js'></script>
+</head>
+
+<body>
+	<div id='core0cpu' style="width:100%;"></div>
+	<div id='core1cpu' style="width:100%;"></div>
+	<div id='core0stack' style="width:49%; display:inline-block"></div>
+	<div id='core1stack' style="width:49%; display:inline-block"></div>
+	<div id='Internal' style="width:49%; display:inline-block"></div>
+	<div id='SPI' style="width:49%; display:inline-block"></div>
+    
+</body>
+
+    <script src='./perf_view.js'></script>
+    <script src='./perf_data.js'></script>
+    <script type="text/javascript">
+
+        const graph_data = mapRawDataToGraphData(perf_data);
+
+        var core0cpu_traces = []
+        var core0stack_traces = []
+        for(const task_name in graph_data.cpu_info.core0){
+            // Handle total CPU for the core separately
+            if(task_name === "total_for_core"){
+                var trace = {
+                    x: graph_data.cpu_info.core0[task_name].x_values,
+                    y: graph_data.cpu_info.core0[task_name].y_cpu_values,
+                    type: 'scatter',
+                    name: 'Total CPU',
+                    line: {
+                        shape: 'spline',
+                        dash: 'dot',
+                        width: 1,
+                        color: 'rgb(128,128,128)'
+                    }
+                }
+                core0cpu_traces.push(trace);
+            }
+            else{
+                var trace = {
+                    x: graph_data.cpu_info.core0[task_name].x_values,
+                    y: graph_data.cpu_info.core0[task_name].y_cpu_values,
+                    type: 'scatter',
+                    name: task_name.substring(0, task_name.indexOf(":")),
+                }
+                core0cpu_traces.push(trace);
+            }
+
+            var stacktrace = {
+                x: graph_data.cpu_info.core0[task_name].x_values,
+                y: graph_data.cpu_info.core0[task_name].y_stack_values,
+                type: 'scatter',
+                name: task_name,
+            }
+            core0stack_traces.push(stacktrace)
+            
+        }
+        Plotly.newPlot('core0cpu', core0cpu_traces, {
+            title: "Core 0 CPU Usage",
+            xaxis: {
+                title: 'Uptime in milliseconds'
+            }
+        });
+        Plotly.newPlot('core0stack', core0stack_traces, {
+            title: "Core 0 Stack Low Water Mark"
+        });
+
+        var core1cpu_traces = []
+        var core1stack_traces = []
+        for(const task_name in graph_data.cpu_info.core1){
+            if(task_name === "total_for_core"){
+                var trace = {
+                    x: graph_data.cpu_info.core1[task_name].x_values,
+                    y: graph_data.cpu_info.core1[task_name].y_cpu_values,
+                    type: 'scatter',
+                    name: 'Total CPU',
+                    line: {
+                        shape: 'spline',
+                        dash: 'dot',
+                        width: 1,
+                        color: 'rgb(128,128,128)'
+                    }
+                }
+                core1cpu_traces.push(trace);
+            }
+            else{
+                var trace = {
+                    x: graph_data.cpu_info.core1[task_name].x_values,
+                    y: graph_data.cpu_info.core1[task_name].y_cpu_values,
+                    type: 'scatter',
+                    name: task_name.substring(0, task_name.indexOf(":")),
+                }
+                core1cpu_traces.push(trace);
+            }
+
+            var stacktrace = {
+                x: graph_data.cpu_info.core1[task_name].x_values,
+                y: graph_data.cpu_info.core1[task_name].y_stack_values,
+                type: 'scatter',
+                name: task_name,
+            }
+            core1stack_traces.push(stacktrace)
+        }
+        Plotly.newPlot('core1cpu', core1cpu_traces, {
+            title: "Core 1 CPU Usage",
+            xaxis: {
+                title: 'Uptime in milliseconds'
+            }
+        });
+        Plotly.newPlot('core1stack', core1stack_traces, {
+            title: "Core 1 Stack Low Water Mark"
+        });
+
+        for(const mem_type in graph_data.mem_info){
+            var free_trace = {
+                x: graph_data.mem_info[mem_type].x_values,
+                y: graph_data.mem_info[mem_type].y_free_values,
+                type: 'scatter',
+                name: "Total Free",
+            }
+            var lfb_trace = {
+                x: graph_data.mem_info[mem_type].x_values,
+                y: graph_data.mem_info[mem_type].y_lfb_values,
+                type: 'scatter',
+                name: "Largest Free Block",
+            }
+            var lwm_trace = {
+                x: graph_data.mem_info[mem_type].x_values,
+                y: graph_data.mem_info[mem_type].y_lwm_values,
+                type: 'scatter',
+                name: "Low Water Mark",
+            }
+
+            var mem_traces = [free_trace, lfb_trace, lwm_trace];
+            if(mem_type)
+            Plotly.newPlot(mem_type, mem_traces, {
+                title: `${mem_type} Memory Statistics`
+            });
+        }
+
+
+    </script>
+</html>
