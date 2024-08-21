@@ -2,6 +2,9 @@
 #define DTF_C_LOGGER_H
 #include <stdarg.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef enum dtf_log_level
 {
     NONE = 0,
@@ -27,5 +30,8 @@ void dtf_set_log_level(DTF_LogLevel level);
 DTF_LogLevel dtf_get_log_level();
 void dtf_enable_logger(DTF_Loggers logger);
 void dtf_disable_logger(DTF_Loggers logger);
+#ifdef __cplusplus
+}
+#endif
 
 #endif // DTF_C_LOGGER_H

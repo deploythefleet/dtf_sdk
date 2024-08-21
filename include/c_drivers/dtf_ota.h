@@ -1,6 +1,9 @@
 #ifndef DTF_C_OTA_PROVIDER_H
 #define DTF_C_OTA_PROVIDER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef enum dtf_ota_response
 {
     DTFOTA_NewFirmwareFlashed = 0,
@@ -26,5 +29,9 @@ typedef struct _dtf_ota_config
 
 DTF_OtaResponse dtf_get_firmware_update(const dtf_ota_cfg_t *cfg);
 const char* dtf_get_active_fw_version();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //DTF_C_OTA_PROVIDER_H

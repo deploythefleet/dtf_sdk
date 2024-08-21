@@ -1,4 +1,4 @@
-#include "../../include/c_drivers/dtf_c_ota.h"
+#include "../../include/c_drivers/dtf_ota.h"
 #include "esp_ota_ops.h"
 #include "esp_tls.h"
 #include "spi_flash_mmap.h"

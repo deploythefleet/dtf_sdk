@@ -5,7 +5,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "c_drivers/runtime_profiler.h"
+#include "runtime_profiler.h"
 
 #if defined(PROFILING)
 constexpr const char *LOG_TAG = "rp";

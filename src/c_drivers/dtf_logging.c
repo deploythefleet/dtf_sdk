@@ -1,4 +1,4 @@
-#include "../../include/c_drivers/dtf_c_logging.h"
+#include "../../include/c_drivers/dtf_logging.h"
 #include <stdbool.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
