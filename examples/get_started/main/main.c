@@ -2,7 +2,7 @@
 #include <esp_event.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "dtf_c_ota.h"
+#include "dtf_ota.h"
 #include "esp_netif.h"
 #include "nvs_flash.h"
 #include "wifi_connect.h"
