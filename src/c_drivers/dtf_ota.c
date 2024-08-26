@@ -8,9 +8,11 @@
 #include "esp_https_ota.h"
 #include "esp_mac.h"
 
-const char* TAG = "ota_provider";
+const char* TAG = "dtf_ota";
+#define CERT_BUNDLE_ID 2
 static char _update_url[256];
-esp_http_client_handle_t _client;
+static esp_http_client_handle_t _client;
+static esp_err_t _last_http_err = ESP_OK;
 
 static const char *get_device_id()
 {
@@ -43,6 +45,7 @@ esp_err_t _ota_http_event_handler(esp_http_client_event_t *evt)
                 if (err == ESP_ERR_MBEDTLS_SSL_HANDSHAKE_FAILED)
                 {
                     ESP_LOGE(TAG, "Cert validation failed\n");
+                    _last_http_err = ESP_ERR_MBEDTLS_SSL_HANDSHAKE_FAILED;
                 }
             }
             break;
@@ -58,10 +61,11 @@ DTF_OtaResponse dtf_get_firmware_update(const dtf_ota_cfg_t *cfg)
     esp_http_client_config_t config = {};
 
     snprintf(_update_url, sizeof(_update_url), 
-        "https://ota.deploythefleet.io/%s?v=%s&did=%s", 
+        "https://ota.deploythefleet.io/%s?v=%s&did=%s&cb=%d", 
         cfg->product_id, 
         dtf_get_active_fw_version(), 
-        get_device_id()
+        get_device_id(),
+        CERT_BUNDLE_ID
     );
 
     config.url = _update_url;
@@ -77,6 +81,23 @@ DTF_OtaResponse dtf_get_firmware_update(const dtf_ota_cfg_t *cfg)
     ota_config.http_client_init_cb = _ota_http_client_init_cb;
 
     esp_err_t ret = esp_https_ota(&ota_config);
+
+    // If there is a cert problem, try the failover
+    if(ret != ESP_OK && _last_http_err == ESP_ERR_MBEDTLS_SSL_HANDSHAKE_FAILED)
+    {
+        _last_http_err = ESP_OK;
+        ESP_LOGI(TAG, "Trying failover endpoint...");
+        snprintf(_update_url, sizeof(_update_url), 
+            "https://ota9.deploythefleet.io/%s?v=%s&did=%s&cb=%d", 
+            cfg->product_id, 
+            dtf_get_active_fw_version(), 
+            get_device_id(),
+            CERT_BUNDLE_ID
+        );
+
+        config.url = _update_url;
+        ret = esp_https_ota(&ota_config);
+    }
     
     switch(ret)
     {
@@ -99,13 +120,20 @@ DTF_OtaResponse dtf_get_firmware_update(const dtf_ota_cfg_t *cfg)
             return DTFOTA_FirmwareWriteFailed;
             break;
         case ESP_FAIL:
-            ESP_LOGW(TAG, "OTA Error: %d", ret);
             int status_code = esp_http_client_get_status_code(_client);
             ESP_LOGD(TAG, "HTTP OTA Status: %d", status_code);
             if(status_code == 304)
             {
                 ESP_LOGI(TAG, "No updates available");
                 return DTFOTA_NoUpdatesAvailable;
+            }
+            if(_last_http_err == ESP_ERR_MBEDTLS_SSL_HANDSHAKE_FAILED)
+            {
+                ESP_LOGE(TAG, "Cert validation failed");
+                return DTFOTA_CertValidationFailed;
+            }
+            else{
+                ESP_LOGW(TAG, "OTA Error: %d", ret);
             }
             return DTFOTA_UnknownError;
             break;

@@ -6,12 +6,13 @@ extern "C" {
 #endif
 typedef enum dtf_ota_response
 {
+    DTFOTA_UnknownError = -1,
     DTFOTA_NewFirmwareFlashed = 0,
-    DTFOTA_InvalidFirmwareImage,
-    DTFOTA_NotEnoughMemory,
-    DTFOTA_FirmwareWriteFailed,
-    DTFOTA_NoUpdatesAvailable,
-    DTFOTA_UnknownError
+    DTFOTA_InvalidFirmwareImage = 1,
+    DTFOTA_NotEnoughMemory = 2,
+    DTFOTA_FirmwareWriteFailed = 3,
+    DTFOTA_NoUpdatesAvailable = 4,
+    DTFOTA_CertValidationFailed = 5,
 }DTF_OtaResponse;
 
 typedef enum dtf_reboot_option
