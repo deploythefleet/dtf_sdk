@@ -7,7 +7,7 @@
 #include "nvs_flash.h"
 #include "wifi_connect.h"
 
-#define DTF_PRODUCT_ID "a9d40ef1-a48e-41db-b3c6-51a0c163297f"
+#define DTF_PRODUCT_ID ""
 
 void app_main(void)
 {
