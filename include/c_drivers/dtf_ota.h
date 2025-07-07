@@ -35,4 +35,16 @@ const char* dtf_get_active_fw_version();
 }
 #endif
 
+#ifndef CONFIG_DTF_OTA_TIMEOUT_MS
+#define CONFIG_DTF_OTA_TIMEOUT_MS 25000 // Default timeout for OTA operations
+#endif
+
+#ifndef CONFIG_DTF_OTA_HTTP_RX_BUFFER_SIZE
+#define CONFIG_DTF_OTA_HTTP_RX_BUFFER_SIZE 2048 // Default RX buffer size for HTTP client
+#endif
+
+#ifndef CONFIG_DTF_OTA_HTTP_TX_BUFFER_SIZE
+#define CONFIG_DTF_OTA_HTTP_TX_BUFFER_SIZE 1024 // Default TX buffer size for HTTP client
+#endif
+
 #endif //DTF_C_OTA_PROVIDER_H

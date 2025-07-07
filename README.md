@@ -24,25 +24,6 @@ run the following command.
 git submodule add https://github.com/deploythefleet/dtf_sdk.git ./components/dtf_sdk
 ```
 
-## `sdkconfig` Settings 
-
-We recommend [using the built-in certificate bundle](https://productionesp32.com/posts/playing-with-certs/) 
-to validate TLS connections to services like Deploy the Fleet. Additionally, an extra certificate can be 
-included in the bundle to allow redundant failover to a backup server. Add the following lines to your 
-**sdkconfig.defaults** file.
-
-```text
-#
-# Custom Certificate for DTF Failover
-#
-CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE=y
-CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH="components/dtf_sdk/certs/dtf_root_x1.pem"
-```
-
-> [!IMPORTANT]
-> You need to regenerate your sdkconfig file after updating the **sdkconfig.defaults** file. Alternatively, 
-> you can set the config options manually using `idf.py menuconfig`.
-
 # Usage
 
 The SDK is extremely simple to use. Please ensure your device has an active connection to the internet 
@@ -70,6 +51,11 @@ typedef struct _dtf_ota_config
     DTF_RebootOption reboot_option;
 }dtf_ota_cfg_t;
 ```
+### Custom Version
+By default, the SDK uses the built-in IDF-resolved version of your firmware. Please see the IDF docs for more 
+information about how that version is derived. If you would like to override that version logic and provide 
+your own custom version to be reported to Deploy the Fleet, you can do that with the `custom_version` setting 
+in the configuration.
 
 ### Reboot Option
 **Default:** Reboot on successful update
