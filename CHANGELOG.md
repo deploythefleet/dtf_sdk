@@ -9,6 +9,19 @@ This is the change log. It is updated with each release and should contain the f
 
 [Semantic Versioning](https://semver.org/) is used to track releases. 
 
+## 2.0.2
+
+_released 2025-11-26_
+
+### Fixed
+- Handle newer error `ESP_ERR_HTTP_NOT_MODIFIED` from `esp_https_ota`
+
+## 2.0.0
+
+_released 2025-07-07_ 
+
+Major release that supports the new Deploy the Fleet service at deploythefleet.com. 
+
 # 1.0.0
 
 _released 2024-08-26_

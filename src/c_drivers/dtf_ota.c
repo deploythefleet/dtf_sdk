@@ -209,6 +209,12 @@ DTF_OtaResponse dtf_get_firmware_update(const dtf_ota_cfg_t *cfg)
         ESP_LOGE(TAG, "Firmware write failed.");
         return DTFOTA_FirmwareWriteFailed;
         break;
+    case ESP_ERR_HTTP_NOT_MODIFIED:
+        // Newer versions of esp_https_ota return this error code for 304 Not Modified
+        // instead of ESP_FAIL in older versions
+        ESP_LOGI(TAG, "No updates available");
+        return DTFOTA_NoUpdatesAvailable;
+        break;
     case ESP_FAIL:
         int status_code = esp_http_client_get_status_code(_client);
         ESP_LOGD(TAG, "HTTP OTA Status: %d", status_code);
