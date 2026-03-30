@@ -48,4 +48,41 @@ menu "Deploy The Fleet SDK"
 
     endmenu
 
+    menu "Observability"
+
+        config DTF_OBSERVABILITY
+        bool "Enable Observability"
+        default n
+        help
+            Master compile-time toggle for the DTF observability subsystem
+            (dtf_log / dtf_metric). When disabled the entire observability
+            code is excluded from the binary — zero size impact.
+
+        config DTF_OBS_BUFFER_SIZE
+        int "Event Buffer Size (max events)"
+        default 32
+        depends on DTF_OBSERVABILITY
+        help
+            Maximum number of log/metric events held in the in-memory ring
+            buffer before the oldest event is dropped. Tune based on
+            available heap (each event is ~176 bytes).
+
+        config DTF_OBS_FLUSH_INTERVAL_MS
+        int "Flush Interval (ms)"
+        default 30000
+        depends on DTF_OBSERVABILITY
+        help
+            How often (in milliseconds) the background flush task sends
+            buffered events to the ingest gateway.
+
+        config DTF_OBS_GATEWAY_URL
+        string "Ingest Gateway URL"
+        default "https://ingest.deploythefleet.io/v1/ingest"
+        depends on DTF_OBSERVABILITY
+        help
+            Full URL of the DTF ingest endpoint. Override for staging or
+            self-hosted deployments.
+
+    endmenu
+
 endmenu
