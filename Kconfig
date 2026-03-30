@@ -10,20 +10,20 @@ menu "Deploy The Fleet SDK"
 
         config DTF_LOGGING_USE_COLOR
         bool "Enable Terminal Colors"
-        default n 
+        default n
         help
-           Enables the use of terminal colors for log messages 
+           Enables the use of terminal colors for log messages
 
     endmenu
 
     menu "OTA"
 
         config DTF_OTA_TIMEOUT_MS
-        int "HTTP Client Timeout (ms)"    
+        int "HTTP Client Timeout (ms)"
         default 25000
         help
             The HTTP client timeout in seconds during the OTA update process
-        
+
         config DTF_OTA_HTTP_RX_BUFFER_SIZE
         int "HTTP RX Buffer Size"
         default 2048
@@ -35,6 +35,45 @@ menu "Deploy The Fleet SDK"
         default 1024
         help
             The size of the buffer used to transmit HTTP data during the OTA update process
+
+    endmenu
+
+    menu "Observability"
+
+        config DTF_OBSERVABILITY
+        bool "Enable Observability"
+        default n
+        help
+            Enable the DTF observability pipeline (dtf_log, dtf_metric).
+            When disabled, all observability code is excluded at compile time —
+            zero binary size impact for OTA-only users.
+
+        config DTF_OBS_BUFFER_SIZE
+        int "Event Buffer Size"
+        depends on DTF_OBSERVABILITY
+        default 64
+        help
+            Maximum number of log/metric events held in the in-memory ring
+            buffer between flushes.  When the buffer is full, the oldest event
+            is dropped to make room for the newest.  A safe default for
+            ESP32-C3 (minimum-RAM target).
+
+        config DTF_OBS_FLUSH_INTERVAL_MS
+        int "Flush Interval (ms)"
+        depends on DTF_OBSERVABILITY
+        default 30000
+        help
+            How often (in milliseconds) the background task sends buffered
+            events to the ingest gateway.  Events are also flushed immediately
+            when the buffer reaches capacity.
+
+        config DTF_OBS_GATEWAY_URL
+        string "Ingest Gateway URL"
+        depends on DTF_OBSERVABILITY
+        default "https://ingest.deploythefleet.com/v1/ingest"
+        help
+            Full URL of the DTF ingest endpoint.  Override for staging or
+            self-hosted deployments.
 
     endmenu
 
