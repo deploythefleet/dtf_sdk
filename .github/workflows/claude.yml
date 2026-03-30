@@ -38,4 +38,8 @@ jobs:
           label_trigger: "ai_task"
           base_branch: "main"
           branch_prefix: "claude/"
-          prompt: "Implement the feature described in this issue. Read CLAUDE.md first. PRs target the next branch."
+          prompt: |                                                                                                              
+              Implement the feature described in GitHub issue #${{ github.event.issue.number }} in this repository.                
+              Use the GitHub MCP tools to read the full issue body.
+              Read CLAUDE.md for repo conventions.                                                                                 
+              Create a branch from main and open a PR targeting the next branch.
