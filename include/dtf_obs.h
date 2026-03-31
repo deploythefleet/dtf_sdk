@@ -23,8 +23,8 @@ typedef enum {
  * @brief PAL function pointer types — set non-NULL in dtf_config_t to override
  *        the weak-linked ESP32 defaults.
  */
-typedef int      (*dtf_pal_storage_read_bsn_fn)(uint32_t *bsn);
-typedef int      (*dtf_pal_storage_write_bsn_fn)(uint32_t bsn);
+typedef int      (*dtf_pal_read_bsn_fn)(uint32_t *bsn);
+typedef int      (*dtf_pal_write_bsn_fn)(uint32_t bsn);
 typedef int      (*dtf_pal_transport_send_fn)(const char *url, const char *auth_header,
                                                const uint8_t *payload, size_t len);
 typedef uint32_t (*dtf_pal_clock_uptime_ms_fn)(void);
@@ -38,26 +38,27 @@ typedef int      (*dtf_pal_timer_create_fn)(uint32_t interval_ms,
 typedef struct {
     /* Required */
     const char *api_key;    /**< Bearer token for the DTF ingest gateway. */
-    const char *device_id;  /**< Unique device identifier. */
 
-    /* Optional metadata */
-    const char *fw_version; /**< Firmware version string (default: "unknown"). */
-    const char *hw_variant; /**< Hardware variant string (default: "unknown"). */
+    /* Optional metadata — NULL or empty uses platform-derived defaults */
+    const char *device_id;  /**< Device ID (default: MAC address, e.g. "aabbccddeeff"). */
+    const char *fw_version; /**< Firmware version (default: PROJECT_VER from CMakeLists.txt). */
+    const char *hw_variant; /**< Hardware variant (default: chip type, e.g. "esp32s3"). */
 
     /* Feature flags */
     bool observability_enabled; /**< Enable log/metric ingestion (default: false). */
 
     /* Observability tuning — 0 or NULL uses menuconfig / compiled-in defaults */
-    uint32_t    buffer_size;       /**< Max queued events before oldest are dropped. */
-    uint32_t    flush_interval_ms; /**< Periodic flush interval in milliseconds. */
-    const char *gateway_url;       /**< Ingest endpoint URL. */
+    uint32_t    persist_buffer_size; /**< Persist buffer size in bytes. */
+    uint32_t    tx_buffer_size;      /**< Transmit buffer size in bytes. */
+    uint32_t    flush_interval_ms;   /**< Periodic flush interval in milliseconds. */
+    const char *gateway_url;         /**< Ingest endpoint URL. */
 
     /* PAL overrides — NULL uses weak-linked ESP32 defaults */
-    dtf_pal_storage_read_bsn_fn  storage_read_bsn;
-    dtf_pal_storage_write_bsn_fn storage_write_bsn;
-    dtf_pal_transport_send_fn    transport_send;
-    dtf_pal_clock_uptime_ms_fn   clock_uptime_ms;
-    dtf_pal_timer_create_fn      timer_create;
+    dtf_pal_read_bsn_fn         read_bsn;
+    dtf_pal_write_bsn_fn        write_bsn;
+    dtf_pal_transport_send_fn   transport_send;
+    dtf_pal_clock_uptime_ms_fn  clock_uptime_ms;
+    dtf_pal_timer_create_fn     timer_create;
 } dtf_config_t;
 
 /**
@@ -68,12 +69,13 @@ typedef struct {
     .device_id             = NULL,      \
     .fw_version            = NULL,      \
     .hw_variant            = NULL,      \
-    .observability_enabled = false,     \
-    .buffer_size           = 0,         \
+    .observability_enabled = true,      \
+    .persist_buffer_size   = 0,         \
+    .tx_buffer_size        = 0,         \
     .flush_interval_ms     = 0,         \
     .gateway_url           = NULL,      \
-    .storage_read_bsn      = NULL,      \
-    .storage_write_bsn     = NULL,      \
+    .read_bsn              = NULL,      \
+    .write_bsn             = NULL,      \
     .transport_send        = NULL,      \
     .clock_uptime_ms       = NULL,      \
     .timer_create          = NULL,      \
@@ -114,6 +116,33 @@ void dtf_log(dtf_log_level_t level, const char *module, const char *message);
  */
 void dtf_metric(const char *name, int32_t value);
 
+/**
+ * @brief Drain the ingest queue into the persist layer.
+ *
+ * Fast, no network I/O, always safe, idempotent.
+ * In managed mode, this is called automatically by the background task.
+ * Call this in manual mode to persist queued events before sleeping.
+ */
+void dtf_process(void);
+
+/**
+ * @brief Persist pending events, then transmit one chunk to the remote endpoint.
+ *
+ * Calls dtf_process() internally. No cooldown — each call sends immediately
+ * if data is available.
+ *
+ * @return 0 = chunk sent, 1 = nothing to send, -1 = transport error.
+ */
+int dtf_send(void);
+
+/**
+ * @brief Returns the number of events pending in the persist layer.
+ *
+ * Use this to decide whether to connect to the network or to drive
+ * a drain loop with dtf_send().
+ */
+size_t dtf_pending(void);
+
 #else /* CONFIG_DTF_OBSERVABILITY not set — zero-overhead stubs */
 
 static inline int dtf_init(const dtf_config_t *config)
@@ -134,6 +163,18 @@ static inline void dtf_metric(const char *name, int32_t value)
 {
     (void)name;
     (void)value;
+}
+
+static inline void dtf_process(void) {}
+
+static inline int dtf_send(void)
+{
+    return 1;
+}
+
+static inline size_t dtf_pending(void)
+{
+    return 0;
 }
 
 #endif /* CONFIG_DTF_OBSERVABILITY */

@@ -43,3 +43,5 @@ jobs:
               Use the GitHub MCP tools to read the full issue body.
               Read CLAUDE.md for repo conventions.                                                                                 
               Create a branch from main and open a PR targeting the next branch.
+              Use an agent team to do a thorough code review of your changes before opening the PR.
+              If you are blocked, ask for help in the issue comments and label the item with "ai_blocked".

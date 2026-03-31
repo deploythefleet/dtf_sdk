@@ -15,6 +15,13 @@ ESP-IDF C SDK for Deploy the Fleet (DTF). Provides OTA updates and observability
 
 ## Conventions
 
+- Formatting: Google C style. All C code must conform to these rules:
+  - IndentWidth: 2 spaces (no tabs)
+  - ColumnLimit: 120
+  - Braces: same line as control statements and functions, `else` on new line after closing brace
+  - Single space before opening brace
+  - No space between function name and parenthesis
+  - Pointer alignment: right (`char* p`, not `char *p`)
 - Language: C (not C++)
 - Build system: ESP-IDF component (CMakeLists.txt + Kconfig)
 - Platform-agnostic core: zero `esp_*.h` includes in core logic. All platform-specific code behind PAL (platform abstraction layer) interfaces with weak-linked ESP32 defaults.
