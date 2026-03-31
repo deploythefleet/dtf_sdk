@@ -87,12 +87,10 @@ static const char* s_gateway_url = NULL;
 static uint32_t s_bsn = 0;
 static uint32_t s_drop_count = 0;
 
-/* Resolved PAL function pointers */
+/* Resolved PAL function pointers (config-overridable) */
 static dtf_pal_read_bsn_fn s_read_bsn;
 static dtf_pal_write_bsn_fn s_write_bsn;
 static dtf_pal_transport_send_fn s_transport;
-static dtf_pal_clock_uptime_ms_fn s_clock;
-static dtf_pal_timer_create_fn s_timer_create;
 
 /* Ring buffer */
 static uint32_t s_ring_cap = 0;
@@ -352,12 +350,10 @@ int dtf_init(const dtf_config_t* config) {
   int n = snprintf(s_auth, sizeof(s_auth), "Bearer %s", config->api_key);
   if (n < 0 || (size_t)n >= sizeof(s_auth)) return -1;
 
-  /* Resolve PAL: config callback takes priority over weak-linked default */
+  /* Resolve config-overridable PAL functions */
   s_read_bsn = config->read_bsn ? config->read_bsn : dtf_pal_read_bsn;
   s_write_bsn = config->write_bsn ? config->write_bsn : dtf_pal_write_bsn;
   s_transport = config->transport_send ? config->transport_send : dtf_pal_transport_send;
-  s_clock = config->clock_uptime_ms ? config->clock_uptime_ms : dtf_pal_clock_uptime_ms;
-  s_timer_create = config->timer_create ? config->timer_create : dtf_pal_timer_create;
 
   s_gateway_url = (config->gateway_url && config->gateway_url[0]) ? config->gateway_url : CONFIG_DTF_OBS_GATEWAY_URL;
 
@@ -366,7 +362,7 @@ int dtf_init(const dtf_config_t* config) {
   s_bsn++;
   s_write_bsn(s_bsn); /* best-effort; ignore error */
 
-  /* Initialise ring buffer */
+  /* Reset ring buffer state */
   s_ring_cap = RING_CAP;
   s_head = s_tail = s_count = 0;
   s_drop_count = 0;
@@ -378,7 +374,7 @@ int dtf_init(const dtf_config_t* config) {
   /* Start periodic pipeline timer */
   uint32_t interval =
       (config->flush_interval_ms > 0) ? config->flush_interval_ms : (uint32_t)CONFIG_DTF_OBS_FLUSH_INTERVAL_MS;
-  if (s_timer_create(interval, pipeline_tick, NULL) != 0) return -1;
+  if (dtf_pal_timer_create(interval, pipeline_tick, NULL) != 0) return -1;
 
   s_obs_active = true;
   return 0;
@@ -391,7 +387,7 @@ void dtf_log(dtf_log_level_t level, const char* module, const char* message) {
   memset(&evt, 0, sizeof(evt));
   evt.type = EVT_LOG;
   evt.bsn = s_bsn;
-  evt.up = s_clock();
+  evt.up = dtf_pal_clock_uptime_ms();
   strncpy(evt.log.lv, lv_str(level), sizeof(evt.log.lv) - 1);
   if (module) strncpy(evt.log.mod, module, sizeof(evt.log.mod) - 1);
   if (message) strncpy(evt.log.m, message, sizeof(evt.log.m) - 1);
@@ -408,7 +404,7 @@ void dtf_metric(const char* name, int32_t value) {
   memset(&evt, 0, sizeof(evt));
   evt.type = EVT_METRIC;
   evt.bsn = s_bsn;
-  evt.up = s_clock();
+  evt.up = dtf_pal_clock_uptime_ms();
   strncpy(evt.metric.n, name, sizeof(evt.metric.n) - 1);
   evt.metric.v = value;
 

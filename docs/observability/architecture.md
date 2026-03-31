@@ -546,43 +546,45 @@ The `api_key` field is runtime-only — it has no Kconfig equivalent. The `devic
 
 ### 6.3 PAL overrides
 
-Every PAL function is `__attribute__((weak))` linked with a default ESP32 implementation. To override, provide a strong (non-weak) definition of the function anywhere in the application, or set a callback pointer in `dtf_config_t` before calling `dtf_init()`.
+PAL functions are overridable in two ways, depending on the use case:
 
-**Persist stage** — override to change where events are stored:
+**Config callbacks (`dtf_config_t`)** — for functions with legitimate runtime-swap use cases (test stubs, per-deployment transport selection, custom BSN storage based on provisioned config). Set the callback in the config struct before calling `dtf_init()`. NULL uses the weak-linked default.
 
-| PAL function | Default | Override for |
+| Config field | PAL default | Override for |
 |---|---|---|
-| `dtf_pal_persist_append` | RAM byte ring | LittleFS, SD card, NVS, FRAM |
-| `dtf_pal_persist_peek` | RAM byte ring | LittleFS, SD card, NVS, FRAM |
-| `dtf_pal_persist_discard` | RAM byte ring | LittleFS, SD card, NVS, FRAM |
-| `dtf_pal_persist_available` | RAM byte ring | LittleFS, SD card, NVS, FRAM |
+| `transport_send` | HTTPS POST with `application/cbor` | MQTT, UDP, cellular, satellite, test stubs |
+| `read_bsn` | NVS namespace "dtf" | Custom BSN persistence |
+| `write_bsn` | NVS namespace "dtf" | Custom BSN persistence |
+| `persist_append` | RAM byte ring | LittleFS, SD, NVS, FRAM, spillover logic *(future — not yet implemented)* |
+| `persist_peek` | RAM byte ring | LittleFS, SD, NVS, FRAM, spillover logic *(future)* |
+| `persist_discard` | RAM byte ring | LittleFS, SD, NVS, FRAM, spillover logic *(future)* |
+| `persist_available` | RAM byte ring | LittleFS, SD, NVS, FRAM, spillover logic *(future)* |
 
-**Transmit stage** — override to change how events are delivered:
+**Weak-linked PAL functions** — for platform decisions made at compile time. Provide a strong (non-weak) definition of the function anywhere in the application.
 
-| PAL function | Default | Override for |
-|---|---|---|
-| `dtf_pal_transport_send` | HTTPS POST | MQTT, UDP, cellular, satellite |
-
-**Allocation** — override to change how SDK memory is allocated:
+*Allocation (future — not yet implemented in v1):*
 
 | PAL function | Default | Override for |
 |---|---|---|
 | `dtf_pal_alloc` | Static buffer | malloc, PSRAM, custom allocator |
 | `dtf_pal_free` | No-op | free, PSRAM, custom allocator |
 
-**System services** — override for custom platform integration:
+*Platform services:*
 
 | PAL function | Default | Override for |
 |---|---|---|
-| `dtf_pal_clock_uptime_ms` | esp_timer | Custom clock source |
-| `dtf_pal_timer_create` | FreeRTOS task | Custom scheduler |
+| `dtf_pal_clock_uptime_ms` | `esp_timer_get_time()` | Custom clock source |
+| `dtf_pal_timer_create` | FreeRTOS task (8 KiB stack) | Custom scheduler |
 | `dtf_pal_mutex_create` | FreeRTOS semaphore | Custom concurrency |
 | `dtf_pal_mutex_lock` | FreeRTOS semaphore | Custom concurrency |
 | `dtf_pal_mutex_unlock` | FreeRTOS semaphore | Custom concurrency |
-| `dtf_pal_read_bsn` | NVS | Custom BSN persistence |
-| `dtf_pal_write_bsn` | NVS | Custom BSN persistence |
+
+*Device identity:*
+
+| PAL function | Default | Override for |
+|---|---|---|
 | `dtf_pal_get_device_id` | WiFi STA MAC address | Custom device ID derivation |
-| `dtf_pal_get_hw_variant` | `esp_chip_info()` | Custom hardware variant string |
+| `dtf_pal_get_hw_variant` | `esp_chip_info()` chip type | Custom hardware variant string |
 | `dtf_pal_get_fw_version` | `esp_app_get_description()->version` | Custom firmware version string |
 
 ## 7. Public API summary

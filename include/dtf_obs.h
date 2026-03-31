@@ -21,15 +21,16 @@ typedef enum {
 
 /**
  * @brief PAL function pointer types — set non-NULL in dtf_config_t to override
- *        the weak-linked ESP32 defaults.
+ *        the weak-linked ESP32 defaults at runtime.
+ *
+ * Only functions with legitimate runtime-swap use cases are exposed here.
+ * Platform internals (clock, timer, mutex) are overridable only via
+ * weak-linked PAL definitions at compile time.
  */
-typedef int      (*dtf_pal_read_bsn_fn)(uint32_t *bsn);
-typedef int      (*dtf_pal_write_bsn_fn)(uint32_t bsn);
-typedef int      (*dtf_pal_transport_send_fn)(const char *url, const char *auth_header,
-                                               const uint8_t *payload, size_t len);
-typedef uint32_t (*dtf_pal_clock_uptime_ms_fn)(void);
-typedef int      (*dtf_pal_timer_create_fn)(uint32_t interval_ms,
-                                             void (*callback)(void *), void *arg);
+typedef int (*dtf_pal_read_bsn_fn)(uint32_t *bsn);
+typedef int (*dtf_pal_write_bsn_fn)(uint32_t bsn);
+typedef int (*dtf_pal_transport_send_fn)(const char *url, const char *auth_header,
+                                         const uint8_t *payload, size_t len);
 
 /**
  * @brief SDK configuration.  Zero-initialise with DTF_CONFIG_DEFAULT(), then
@@ -48,17 +49,15 @@ typedef struct {
     bool observability_enabled; /**< Enable log/metric ingestion (default: false). */
 
     /* Observability tuning — 0 or NULL uses menuconfig / compiled-in defaults */
-    uint32_t    persist_buffer_size; /**< Persist buffer size in bytes. */
-    uint32_t    tx_buffer_size;      /**< Transmit buffer size in bytes. */
     uint32_t    flush_interval_ms;   /**< Periodic flush interval in milliseconds. */
     const char *gateway_url;         /**< Ingest endpoint URL. */
 
-    /* PAL overrides — NULL uses weak-linked ESP32 defaults */
-    dtf_pal_read_bsn_fn         read_bsn;
-    dtf_pal_write_bsn_fn        write_bsn;
-    dtf_pal_transport_send_fn   transport_send;
-    dtf_pal_clock_uptime_ms_fn  clock_uptime_ms;
-    dtf_pal_timer_create_fn     timer_create;
+    /* PAL overrides — NULL uses weak-linked ESP32 defaults.
+     * For platform internals (clock, timer, mutex), override the
+     * weak-linked functions in dtf_pal.h directly instead. */
+    dtf_pal_read_bsn_fn        read_bsn;
+    dtf_pal_write_bsn_fn       write_bsn;
+    dtf_pal_transport_send_fn  transport_send;
 } dtf_config_t;
 
 /**
@@ -70,15 +69,11 @@ typedef struct {
     .fw_version            = NULL,      \
     .hw_variant            = NULL,      \
     .observability_enabled = true,      \
-    .persist_buffer_size   = 0,         \
-    .tx_buffer_size        = 0,         \
     .flush_interval_ms     = 0,         \
     .gateway_url           = NULL,      \
     .read_bsn              = NULL,      \
     .write_bsn             = NULL,      \
     .transport_send        = NULL,      \
-    .clock_uptime_ms       = NULL,      \
-    .timer_create          = NULL,      \
 }
 
 #ifdef CONFIG_DTF_OBSERVABILITY
