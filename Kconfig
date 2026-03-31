@@ -97,6 +97,16 @@ menu "Deploy The Fleet SDK"
             Lower values: more responsive, more network usage.
             Higher values: less network usage, more buffering needed.
 
+        config DTF_OBS_FLOAT_METRICS
+        bool "Enable float metrics (dtf_metric_float)"
+        depends on DTF_OBSERVABILITY
+        default n
+        help
+            Enables dtf_metric_float() for single-precision float metrics.
+            On targets without a hardware FPU, enabling this will pull in
+            the software floating-point library and increase binary size.
+            Leave disabled if all your metrics are integers.
+
         config DTF_OBS_GATEWAY_URL
         string "Ingest Gateway URL"
         depends on DTF_OBSERVABILITY

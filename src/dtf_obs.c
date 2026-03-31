@@ -41,6 +41,7 @@
 /* Event type tags */
 #define EVT_LOG 0
 #define EVT_METRIC 1
+#define EVT_METRIC_FLOAT 2
 
 typedef struct {
   uint8_t type;
@@ -56,6 +57,12 @@ typedef struct {
       char n[DTF_NAME_MAX_LEN];
       int32_t v;
     } metric;
+#ifdef CONFIG_DTF_OBS_FLOAT_METRICS
+    struct {
+      char n[DTF_NAME_MAX_LEN];
+      float v;
+    } metric_float;
+#endif
   };
 } dtf_event_t;
 
@@ -108,6 +115,8 @@ static bool s_sending = false;
 
 static const char* lv_str(dtf_log_level_t level) {
   switch (level) {
+    case DTF_LOG_VERBOSE:
+      return "v";
     case DTF_LOG_DEBUG:
       return "d";
     case DTF_LOG_INFO:
@@ -189,6 +198,26 @@ static size_t cbor_kv_int(uint8_t* buf, const char* key, int32_t val) {
   return n;
 }
 
+#ifdef CONFIG_DTF_OBS_FLOAT_METRICS
+/* Encode a single-precision float (CBOR major type 7, additional info 26) */
+static size_t cbor_encode_float(uint8_t* buf, float val) {
+  uint32_t bits;
+  memcpy(&bits, &val, sizeof(bits));
+  buf[0] = 0xFA; /* float32 */
+  buf[1] = (uint8_t)(bits >> 24);
+  buf[2] = (uint8_t)(bits >> 16);
+  buf[3] = (uint8_t)(bits >> 8);
+  buf[4] = (uint8_t)bits;
+  return 5;
+}
+
+static size_t cbor_kv_float(uint8_t* buf, const char* key, float val) {
+  size_t n = cbor_encode_tstr(buf, key);
+  n += cbor_encode_float(buf + n, val);
+  return n;
+}
+#endif
+
 /* ---------------------------------------------------------------------------
  * Ring buffer (caller must hold s_mutex)
  * --------------------------------------------------------------------------- */
@@ -233,7 +262,7 @@ static size_t cbor_encode_event(uint8_t* buf, const dtf_event_t* e) {
     pos += cbor_kv_tstr(buf + pos, "mod", e->log.mod);
     pos += cbor_kv_tstr(buf + pos, "m", e->log.m);
   }
-  else {
+  else if (e->type == EVT_METRIC) {
     pos += cbor_encode_map_hdr(buf + pos, 5);
     pos += cbor_kv_tstr(buf + pos, "t", "m");
     pos += cbor_kv_uint(buf + pos, "bsn", e->bsn);
@@ -241,6 +270,16 @@ static size_t cbor_encode_event(uint8_t* buf, const dtf_event_t* e) {
     pos += cbor_kv_tstr(buf + pos, "n", e->metric.n);
     pos += cbor_kv_int(buf + pos, "v", e->metric.v);
   }
+#ifdef CONFIG_DTF_OBS_FLOAT_METRICS
+  else if (e->type == EVT_METRIC_FLOAT) {
+    pos += cbor_encode_map_hdr(buf + pos, 5);
+    pos += cbor_kv_tstr(buf + pos, "t", "m");
+    pos += cbor_kv_uint(buf + pos, "bsn", e->bsn);
+    pos += cbor_kv_uint(buf + pos, "up", e->up);
+    pos += cbor_kv_tstr(buf + pos, "n", e->metric_float.n);
+    pos += cbor_kv_float(buf + pos, "v", e->metric_float.v);
+  }
+#endif
   return pos;
 }
 
@@ -342,8 +381,6 @@ int dtf_init(const dtf_config_t* config) {
   s_fw_version = (config->fw_version && config->fw_version[0]) ? config->fw_version : dtf_pal_get_fw_version();
   s_hw_variant = (config->hw_variant && config->hw_variant[0]) ? config->hw_variant : dtf_pal_get_hw_variant();
 
-  if (!config->observability_enabled) return 0;
-
   if (!config->api_key) return -1;
 
   /* Pre-build auth header */
@@ -413,6 +450,24 @@ void dtf_metric(const char* name, int32_t value) {
   dtf_pal_mutex_unlock(s_mutex);
 }
 
+#ifdef CONFIG_DTF_OBS_FLOAT_METRICS
+void dtf_metric_float(const char* name, float value) {
+  if (!s_obs_active || !name) return;
+
+  dtf_event_t evt;
+  memset(&evt, 0, sizeof(evt));
+  evt.type = EVT_METRIC_FLOAT;
+  evt.bsn = s_bsn;
+  evt.up = dtf_pal_clock_uptime_ms();
+  strncpy(evt.metric_float.n, name, sizeof(evt.metric_float.n) - 1);
+  evt.metric_float.v = value;
+
+  dtf_pal_mutex_lock(s_mutex);
+  ring_push(&evt);
+  dtf_pal_mutex_unlock(s_mutex);
+}
+#endif
+
 void dtf_process(void) {
   /* V1: ingest and persist are the same ring buffer — nothing to drain.
    * This function exists to establish the API contract. When the byte ring
@@ -469,7 +524,7 @@ int dtf_send(void) {
 size_t dtf_pending(void) {
   if (!s_obs_active) return 0;
   dtf_pal_mutex_lock(s_mutex);
-  size_t count = s_count;
+  size_t bytes = s_count * sizeof(dtf_event_t);
   dtf_pal_mutex_unlock(s_mutex);
-  return count;
+  return bytes;
 }

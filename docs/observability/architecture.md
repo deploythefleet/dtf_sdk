@@ -29,7 +29,8 @@ Each stage has a single responsibility, a default implementation, and a PAL inte
 
 **Inputs:**
 - `dtf_log()` — structured log messages with level, module, and message text
-- `dtf_metric()` — key/value numeric measurements
+- `dtf_metric()` — key/value integer measurements
+- `dtf_metric_float()` — key/value float measurements (requires `CONFIG_DTF_OBS_FLOAT_METRICS=y` to avoid pulling in software FPU on targets without hardware FPU)
 - (Future) ESP-IDF log hook — captures `ESP_LOGx()` output transparently
 - (Future) `dtf_event()` — arbitrary structured events
 
@@ -138,20 +139,20 @@ CBOR map(6) {
   text("t"):   text("l"),
   text("bsn"): uint(boot_sequence_number),
   text("up"):  uint(uptime_ms),
-  text("lv"):  text("d"|"i"|"w"|"e"),
+  text("lv"):  text("v"|"d"|"i"|"w"|"e"),
   text("mod"): text(module_name),
   text("m"):   text(message)
 }
 ```
 
-Metric event:
+Metric event (integer or float — same structure, `"v"` type varies):
 ```
 CBOR map(5) {
   text("t"):   text("m"),
   text("bsn"): uint(boot_sequence_number),
   text("up"):  uint(uptime_ms),
   text("n"):   text(metric_name),
-  text("v"):   int(value)
+  text("v"):   int(value) | float32(value)
 }
 ```
 
@@ -393,11 +394,12 @@ All options live under `menuconfig → Deploy The Fleet SDK → Observability`.
 #### Kconfig dependency tree
 
 ```
-DTF_OBSERVABILITY                    (master toggle)
+DTF_OBSERVABILITY                    (master toggle — compile-time inclusion)
 ├── DTF_OBS_PERSIST_BUFFER_SIZE      (always visible)
 ├── DTF_OBS_TX_BUFFER_SIZE           (always visible)
 ├── DTF_OBS_MANUAL_MODE              (always visible)
 ├── DTF_OBS_FLUSH_MIN_INTERVAL_MS    (depends on !DTF_OBS_MANUAL_MODE)
+├── DTF_OBS_FLOAT_METRICS            (always visible)
 ├── DTF_OBS_GATEWAY_URL              (always visible)
 ├── DTF_OBS_DEVICE_ID                (always visible)
 ├── DTF_OBS_HW_VARIANT               (always visible)
@@ -420,6 +422,7 @@ Note: `api_key` is intentionally **not** a Kconfig option. API keys are secrets 
 | `DTF_OBS_FLUSH_MIN_INTERVAL_MS` | int | 10000 | Minimum time between automatic network transmissions (cooldown). Also serves as the periodic flush timer in managed mode. Only visible when `DTF_OBS_MANUAL_MODE` is disabled. |
 | `DTF_OBS_GATEWAY_URL` | string | `https://ingest.deploythefleet.com/v1/ingest` | Ingest endpoint URL. Override for staging, self-hosted, or development tunnels. |
 | `DTF_OBS_MANUAL_MODE` | bool | n | When enabled, no background task is created. The user drives the pipeline via `dtf_process()` and `dtf_send()`. |
+| `DTF_OBS_FLOAT_METRICS` | bool | n | Enables `dtf_metric_float()`. On targets without a hardware FPU, this pulls in the software floating-point library and increases binary size. |
 
 #### Device identity
 
@@ -603,12 +606,20 @@ int dtf_init(const dtf_config_t* config);
 
 ```c
 /* Log a message. Level, module, and message are captured immediately.
+ * Level is one of: DTF_LOG_VERBOSE, DTF_LOG_DEBUG, DTF_LOG_INFO,
+ * DTF_LOG_WARN, DTF_LOG_ERROR.
  * Never blocks. Safe to call from any task context. */
 void dtf_log(dtf_log_level_t level, const char* module, const char* message);
 
-/* Record a metric. Name and value are captured immediately.
+/* Record an integer metric. Name and value are captured immediately.
  * Never blocks. Safe to call from any task context. */
 void dtf_metric(const char* name, int32_t value);
+
+/* Record a float metric. Requires CONFIG_DTF_OBS_FLOAT_METRICS=y.
+ * On targets without a hardware FPU, enabling this pulls in the
+ * software floating-point library and increases binary size.
+ * Never blocks. Safe to call from any task context. */
+void dtf_metric_float(const char* name, float value);
 ```
 
 ### Pipeline control

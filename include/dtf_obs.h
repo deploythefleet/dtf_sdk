@@ -13,7 +13,8 @@ extern "C" {
  * @brief Log level for dtf_log() events shipped to the ingest gateway.
  */
 typedef enum {
-    DTF_LOG_DEBUG = 0,
+    DTF_LOG_VERBOSE = 0,
+    DTF_LOG_DEBUG,
     DTF_LOG_INFO,
     DTF_LOG_WARN,
     DTF_LOG_ERROR,
@@ -45,9 +46,6 @@ typedef struct {
     const char *fw_version; /**< Firmware version (default: PROJECT_VER from CMakeLists.txt). */
     const char *hw_variant; /**< Hardware variant (default: chip type, e.g. "esp32s3"). */
 
-    /* Feature flags */
-    bool observability_enabled; /**< Enable log/metric ingestion (default: false). */
-
     /* Observability tuning — 0 or NULL uses menuconfig / compiled-in defaults */
     uint32_t    flush_interval_ms;   /**< Periodic flush interval in milliseconds. */
     const char *gateway_url;         /**< Ingest endpoint URL. */
@@ -68,7 +66,6 @@ typedef struct {
     .device_id             = NULL,      \
     .fw_version            = NULL,      \
     .hw_variant            = NULL,      \
-    .observability_enabled = true,      \
     .flush_interval_ms     = 0,         \
     .gateway_url           = NULL,      \
     .read_bsn              = NULL,      \
@@ -81,8 +78,9 @@ typedef struct {
 /**
  * @brief Initialise the DTF SDK.
  *
- * When observability_enabled is false (or dtf_init() is not called), all
- * observability code is inactive — no tasks, no memory, no network calls.
+ * Call once at startup. Observability is controlled by the Kconfig option
+ * DTF_OBSERVABILITY — when disabled, all observability code is excluded
+ * at compile time (zero binary size impact).
  *
  * @param config  Pointer to the configuration struct.
  * @return 0 on success, non-zero on error.
@@ -92,8 +90,7 @@ int dtf_init(const dtf_config_t *config);
 /**
  * @brief Queue a log event for delivery to the ingest gateway.
  *
- * Safe to call from any task.  No-op when observability is disabled or
- * dtf_init() has not been called.
+ * Safe to call from any task.  No-op if dtf_init() has not been called.
  *
  * @param level    Severity level.
  * @param module   Subsystem tag (e.g. "wifi", "sensor").  May be NULL.
@@ -102,14 +99,29 @@ int dtf_init(const dtf_config_t *config);
 void dtf_log(dtf_log_level_t level, const char *module, const char *message);
 
 /**
- * @brief Queue a gauge metric event for delivery to the ingest gateway.
+ * @brief Queue a gauge metric event (integer) for delivery to the ingest gateway.
  *
- * Safe to call from any task.  No-op when observability is disabled.
+ * Safe to call from any task.  No-op if dtf_init() has not been called.
  *
  * @param name   Metric name (e.g. "hf", "rssi").
  * @param value  Signed 32-bit integer value.
  */
 void dtf_metric(const char *name, int32_t value);
+
+#ifdef CONFIG_DTF_OBS_FLOAT_METRICS
+/**
+ * @brief Queue a gauge metric event (float) for delivery to the ingest gateway.
+ *
+ * Requires CONFIG_DTF_OBS_FLOAT_METRICS=y. On targets without an FPU, enabling
+ * this will pull in the software floating-point library and increase binary size.
+ *
+ * Safe to call from any task.  No-op if dtf_init() has not been called.
+ *
+ * @param name   Metric name (e.g. "temp", "voltage").
+ * @param value  Single-precision float value.
+ */
+void dtf_metric_float(const char *name, float value);
+#endif
 
 /**
  * @brief Drain the ingest queue into the persist layer.
@@ -131,14 +143,18 @@ void dtf_process(void);
 int dtf_send(void);
 
 /**
- * @brief Returns the number of events pending in the persist layer.
+ * @brief Returns the number of bytes pending in the persist layer.
  *
  * Use this to decide whether to connect to the network or to drive
  * a drain loop with dtf_send().
  */
 size_t dtf_pending(void);
 
-#else /* CONFIG_DTF_OBSERVABILITY not set — zero-overhead stubs */
+#else /* CONFIG_DTF_OBSERVABILITY not set — zero-overhead stubs with compiler warnings */
+
+#define DTF_OBS_DISABLED_WARNING __attribute__((warning( \
+    "DTF observability call present but CONFIG_DTF_OBSERVABILITY is disabled. " \
+    "Enable it in menuconfig or suppress this warning if intentional.")))
 
 static inline int dtf_init(const dtf_config_t *config)
 {
@@ -146,6 +162,7 @@ static inline int dtf_init(const dtf_config_t *config)
     return 0;
 }
 
+DTF_OBS_DISABLED_WARNING
 static inline void dtf_log(dtf_log_level_t level, const char *module,
                             const char *message)
 {
@@ -154,7 +171,15 @@ static inline void dtf_log(dtf_log_level_t level, const char *module,
     (void)message;
 }
 
+DTF_OBS_DISABLED_WARNING
 static inline void dtf_metric(const char *name, int32_t value)
+{
+    (void)name;
+    (void)value;
+}
+
+DTF_OBS_DISABLED_WARNING
+static inline void dtf_metric_float(const char *name, float value)
 {
     (void)name;
     (void)value;
@@ -171,6 +196,8 @@ static inline size_t dtf_pending(void)
 {
     return 0;
 }
+
+#undef DTF_OBS_DISABLED_WARNING
 
 #endif /* CONFIG_DTF_OBSERVABILITY */
 
