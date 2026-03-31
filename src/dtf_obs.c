@@ -35,6 +35,9 @@
 #define DTF_MSG_MAX_LEN 129 /* log message + NUL   */
 #define DTF_NAME_MAX_LEN 17 /* metric name + NUL   */
 
+/* Schema version — increment when the wire format changes */
+#define DTF_OBS_SCHEMA_VERSION 1
+
 /* Auth header max: "Bearer " (7) + key + NUL */
 #define DTF_AUTH_MAX_LEN 128
 
@@ -301,8 +304,9 @@ static uint32_t build_payload(size_t* out_len) {
    * how many events fit. Use the end of s_tx_buf as scratch. */
   uint8_t hdr_scratch[128];
   size_t hdr_len = 0;
-  uint32_t map_pairs = s_drop_count > 0 ? 6 : 5;
+  uint32_t map_pairs = s_drop_count > 0 ? 7 : 6;
   hdr_len += cbor_encode_map_hdr(hdr_scratch + hdr_len, map_pairs);
+  hdr_len += cbor_kv_uint(hdr_scratch + hdr_len, "sv", DTF_OBS_SCHEMA_VERSION);
   hdr_len += cbor_kv_tstr(hdr_scratch + hdr_len, "src", "device");
   hdr_len += cbor_kv_tstr(hdr_scratch + hdr_len, "d", d);
   hdr_len += cbor_kv_tstr(hdr_scratch + hdr_len, "fv", fv);
@@ -341,6 +345,7 @@ static uint32_t build_payload(size_t* out_len) {
   /* Now write the real payload into s_tx_buf */
   size_t pos = 0;
   pos += cbor_encode_map_hdr(s_tx_buf + pos, map_pairs);
+  pos += cbor_kv_uint(s_tx_buf + pos, "sv", DTF_OBS_SCHEMA_VERSION);
   pos += cbor_kv_tstr(s_tx_buf + pos, "src", "device");
   pos += cbor_kv_tstr(s_tx_buf + pos, "d", d);
   pos += cbor_kv_tstr(s_tx_buf + pos, "fv", fv);

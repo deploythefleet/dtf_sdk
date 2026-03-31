@@ -119,7 +119,8 @@ size_t dtf_pal_persist_available(void);
 The entire payload is CBOR (RFC 8949), front to back. No JSON anywhere in the pipeline. The `"src"` field is always `"device"` for payloads originating from the SDK, distinguishing them from payloads submitted by external tools such as serial log capture applications.
 
 ```
-CBOR map(5 or 6) {
+CBOR map(6 or 7) {
+  text("sv"):      uint(1),                  // schema version — increment on breaking format changes
   text("src"):     text("device"),           // always "device" — distinguishes from serial logger
   text("d"):       text(device_id),
   text("fv"):      text(fw_version),
