@@ -10,20 +10,20 @@ menu "Deploy The Fleet SDK"
 
         config DTF_LOGGING_USE_COLOR
         bool "Enable Terminal Colors"
-        default n 
+        default n
         help
-           Enables the use of terminal colors for log messages 
+           Enables the use of terminal colors for log messages
 
     endmenu
 
     menu "OTA"
 
         config DTF_OTA_TIMEOUT_MS
-        int "HTTP Client Timeout (ms)"    
+        int "HTTP Client Timeout (ms)"
         default 25000
         help
             The HTTP client timeout in seconds during the OTA update process
-        
+
         config DTF_OTA_HTTP_RX_BUFFER_SIZE
         int "HTTP RX Buffer Size"
         default 2048
@@ -35,6 +35,85 @@ menu "Deploy The Fleet SDK"
         default 1024
         help
             The size of the buffer used to transmit HTTP data during the OTA update process
+
+    endmenu
+
+    menu "Observability"
+
+        config DTF_OBSERVABILITY
+        bool "Enable Observability"
+        default n
+        help
+            Enable the DTF observability pipeline (dtf_log, dtf_metric).
+            When disabled, all observability code is excluded at compile time —
+            zero binary size impact for OTA-only users.
+
+        config DTF_OBS_PERSIST_BUFFER_SIZE
+        int "Persist buffer size (bytes)"
+        depends on DTF_OBSERVABILITY
+        default 8192
+        help
+            Total memory allocated for buffering observability events.
+            This is the primary memory budget for the observability
+            subsystem. Events are CBOR-encoded and stored compactly:
+
+            - Metric events typically use 20-30 bytes each
+            - Log events use 40-200 bytes depending on message length
+
+            Examples at default message length (128 chars):
+                4096 bytes  ≈ 22-160 events depending on mix
+                8192 bytes  ≈ 45-320 events depending on mix
+                16384 bytes ≈ 90-640 events depending on mix
+
+            If events are being dropped (visible in device logs and
+            in the "dropped" field of telemetry payloads), either
+            increase this value or decrease
+            DTF_OBS_FLUSH_MIN_INTERVAL_MS.
+
+        config DTF_OBS_TX_BUFFER_SIZE
+        int "Transmit buffer size (bytes)"
+        depends on DTF_OBSERVABILITY
+        default 2048
+        help
+            Size of the buffer used to build outgoing CBOR payloads.
+            The SDK automatically chunks transmissions to fit within
+            this buffer. Larger values send more events per request
+            (fewer HTTP round trips) but use more RAM.
+
+            Minimum recommended: 512 bytes (enough for a few events).
+            The buffer must be large enough to hold the CBOR envelope
+            overhead (~100 bytes) plus at least one maximum-sized event.
+
+        config DTF_OBS_FLUSH_MIN_INTERVAL_MS
+        int "Minimum flush interval (ms)"
+        depends on DTF_OBSERVABILITY
+        default 10000
+        help
+            Minimum time between automatic network transmissions in
+            managed mode. Also serves as the periodic heartbeat timer —
+            even if the persist buffer has not reached the flush
+            threshold, a send will occur at this interval.
+
+            Lower values: more responsive, more network usage.
+            Higher values: less network usage, more buffering needed.
+
+        config DTF_OBS_FLOAT_METRICS
+        bool "Enable float metrics (dtf_metric_float)"
+        depends on DTF_OBSERVABILITY
+        default n
+        help
+            Enables dtf_metric_float() for single-precision float metrics.
+            On targets without a hardware FPU, enabling this will pull in
+            the software floating-point library and increase binary size.
+            Leave disabled if all your metrics are integers.
+
+        config DTF_OBS_GATEWAY_URL
+        string "Ingest Gateway URL"
+        depends on DTF_OBSERVABILITY
+        default "https://ingest.deploythefleet.com/v1/ingest"
+        help
+            Full URL of the DTF ingest endpoint.  Override for staging or
+            self-hosted deployments.
 
     endmenu
 
