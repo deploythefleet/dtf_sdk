@@ -175,13 +175,9 @@ static size_t cbor_encode_tstr(uint8_t* buf, const char* str) {
   return hdr + slen;
 }
 
-static size_t cbor_encode_map_hdr(uint8_t* buf, uint32_t n_pairs) {
-  return cbor_encode_uint_hdr(buf, 5, n_pairs);
-}
+static size_t cbor_encode_map_hdr(uint8_t* buf, uint32_t n_pairs) { return cbor_encode_uint_hdr(buf, 5, n_pairs); }
 
-static size_t cbor_encode_array_hdr(uint8_t* buf, uint32_t n_items) {
-  return cbor_encode_uint_hdr(buf, 4, n_items);
-}
+static size_t cbor_encode_array_hdr(uint8_t* buf, uint32_t n_items) { return cbor_encode_uint_hdr(buf, 4, n_items); }
 
 static size_t cbor_kv_tstr(uint8_t* buf, const char* key, const char* val) {
   size_t n = cbor_encode_tstr(buf, key);
@@ -307,7 +303,7 @@ static uint32_t build_payload(size_t* out_len) {
   uint32_t map_pairs = s_drop_count > 0 ? 7 : 6;
   hdr_len += cbor_encode_map_hdr(hdr_scratch + hdr_len, map_pairs);
   hdr_len += cbor_kv_uint(hdr_scratch + hdr_len, "sv", DTF_OBS_SCHEMA_VERSION);
-  hdr_len += cbor_kv_tstr(hdr_scratch + hdr_len, "src", "device");
+  hdr_len += cbor_kv_tstr(hdr_scratch + hdr_len, "src", "sdk");
   hdr_len += cbor_kv_tstr(hdr_scratch + hdr_len, "d", d);
   hdr_len += cbor_kv_tstr(hdr_scratch + hdr_len, "fv", fv);
   hdr_len += cbor_kv_tstr(hdr_scratch + hdr_len, "hw", hw);
@@ -346,7 +342,7 @@ static uint32_t build_payload(size_t* out_len) {
   size_t pos = 0;
   pos += cbor_encode_map_hdr(s_tx_buf + pos, map_pairs);
   pos += cbor_kv_uint(s_tx_buf + pos, "sv", DTF_OBS_SCHEMA_VERSION);
-  pos += cbor_kv_tstr(s_tx_buf + pos, "src", "device");
+  pos += cbor_kv_tstr(s_tx_buf + pos, "src", "sdk");
   pos += cbor_kv_tstr(s_tx_buf + pos, "d", d);
   pos += cbor_kv_tstr(s_tx_buf + pos, "fv", fv);
   pos += cbor_kv_tstr(s_tx_buf + pos, "hw", hw);
